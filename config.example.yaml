@@ -1,0 +1,57 @@
+# doc2md configuration
+# Salin fail ini sebagai config.yaml, kemudian `doc2md convert <fail>` akan
+# mengambilnya secara automatik (atau guna `doc2md convert <fail> -c config.yaml`).
+
+llm:
+  # Mana-mana endpoint yang serasi OpenAI, contohnya:
+  #   https://api.openai.com/v1
+  #   http://localhost:1234/v1        (LM Studio)
+  #   http://localhost:11434/v1       (Ollama)
+  base_url: "http://localhost:1234/v1"
+
+  # API key. Boleh guna rujukan env var: "${OPENAI_API_KEY}".
+  # Biarkan kosong untuk server lokal yang tak perlukan key.
+  api_key: "${OPENAI_API_KEY}"
+
+  # Model vision yang akan mentranskrip image -> markdown.
+  model: "gpt-4o"
+
+  # API yang digunakan: "chat_completion" (default) atau "response".
+  api_mode: chat_completion
+
+  # Optional. Kalau dibuang/dikomen, field temperature TIDAK dihantar langsung
+  # dalam request (server guna default sendiri).
+  # temperature: 0.1
+
+  # Optional. Custom headers untuk request LLM (contohnya proxy / gateway dalaman).
+  # Kalau dibuang, tiada header tambahan dihantar.
+  # headers:
+  #   X-Custom-Header: "nilai"
+
+  # Verify SSL certificate untuk sambungan LLM. Default: true.
+  # Set false HANYA untuk endpoint self-signed / internal yang dipercayai.
+  ssl_verify: true
+
+  # Timeout setiap request (saat) dan bilangan retry untuk 429/5xx/rangkaian.
+  timeout: 120
+  max_retries: 3
+
+render:
+  # Resolusi image setiap page. 300 = kualiti HD untuk transkripsi.
+  dpi: 300
+  # png (lossless, fail besar) atau jpeg (lebih kecil).
+  image_format: png
+
+processing:
+  # Bilangan page yang ditranskrip serentak oleh LLM.
+  concurrency: 3
+
+output:
+  # Folder output untuk fail .md.
+  dir: ./output
+  # Sisip penanda <!-- page N --> antara setiap page dalam markdown akhir.
+  page_marker: true
+  # Extract embedded figures (chart, gambar, diagram) ke folder
+  # <sha256(nama)[:12]>_images/ dan rewrite image ref dalam markdown
+  # kepada fail sebenar.
+  extract_images: true
