@@ -88,12 +88,18 @@ async def _run_conversion(
     with tempfile.TemporaryDirectory(prefix="doc2md-") as tmp:
         work_dir = Path(tmp)
         with console.status(f"Rendering {source.name} to images..."):
-            images, pdf_path = prepare_images(
+            images, pdf_path, skipped = prepare_images(
                 source,
                 work_dir,
                 dpi=cfg.render.dpi,
                 image_format=cfg.render.image_format,
                 pages=pages,
+                skip_hidden=cfg.processing.skip_hidden_slides,
+            )
+        if skipped:
+            console.print(
+                f"[yellow]Skipped {len(skipped)} hidden slide(s): "
+                f"{', '.join(map(str, skipped))}[/yellow]"
             )
         console.print(f"Rendered {len(images)} page(s) at {cfg.render.dpi} DPI.")
 

@@ -55,6 +55,7 @@ render:
 
 processing:
   concurrency: 3                         # pages transcribed concurrently
+  skip_hidden_slides: true               # exclude hidden PowerPoint slides
 
 output:
   dir: ./output
@@ -112,6 +113,7 @@ This way the original slide stays visible alongside the transcribed Markdown.
 
 ## Behaviour notes
 
+- **Hidden slides (PowerPoint)** — slides marked as hidden are skipped entirely: not rendered, not sent to the LLM, and not included in the Markdown. The console lists the skipped slides. Page markers keep the original slide numbers, so `<!-- page 5 -->` still means slide 5 even when earlier slides were skipped. If every requested slide is hidden, the conversion stops with an error (exit code `1`). Disable with `skip_hidden_slides: false`.
 - **Retries** — failed requests (429/5xx/timeouts/network errors) are retried with exponential backoff up to `max_retries`.
 - **Failed pages** — after retries are exhausted, a `[Page N transcription failed: ...]` placeholder is inserted into the output and remaining pages continue. Exit code `1` is returned so automation can detect partial failures.
 - **Optional temperature** — when absent from the config, the `temperature` field is omitted from the payload entirely (the server uses its own default).

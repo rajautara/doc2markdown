@@ -34,6 +34,7 @@ class RenderConfig(BaseModel):
 
 class ProcessingConfig(BaseModel):
     concurrency: int = 3
+    skip_hidden_slides: bool = True
 
 
 class OutputConfig(BaseModel):

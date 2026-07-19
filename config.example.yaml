@@ -45,6 +45,9 @@ render:
 processing:
   # Bilangan page yang ditranskrip serentak oleh LLM.
   concurrency: 3
+  # Skip PowerPoint slides yang di-mark sebagai hidden — tidak dihantar ke
+  # LLM dan tidak masuk ke markdown. Default: true.
+  skip_hidden_slides: true
 
 output:
   # Folder output untuk fail .md.

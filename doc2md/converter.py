@@ -39,8 +39,13 @@ def document_kind(path: Path) -> str:
     return "document"
 
 
-def office_to_pdf(source: Path, pdf_path: Path) -> None:
-    """Convert an Office document to PDF using the installed MS Office via COM."""
+def office_to_pdf(source: Path, pdf_path: Path) -> tuple[set[int], int]:
+    """Convert an Office document to PDF using the installed MS Office via COM.
+
+    Returns ``(hidden_slides, slide_count)``: the 1-based indices of slides
+    marked as hidden in the source presentation and the total slide count.
+    Both are empty/zero for non-PowerPoint documents.
+    """
 
     ext = source.suffix.lower()
     try:
@@ -54,9 +59,10 @@ def office_to_pdf(source: Path, pdf_path: Path) -> None:
     pythoncom.CoInitialize()
     try:
         if ext in POWERPOINT_EXTS:
-            _powerpoint_to_pdf(source, pdf_path)
+            return _powerpoint_to_pdf(source, pdf_path)
         elif ext in WORD_EXTS:
             _word_to_pdf(source, pdf_path)
+            return set(), 0
         else:
             raise ConversionError(f"Unsupported Office format: {ext}")
     except ConversionError:
@@ -69,7 +75,7 @@ def office_to_pdf(source: Path, pdf_path: Path) -> None:
         pythoncom.CoUninitialize()
 
 
-def _powerpoint_to_pdf(source: Path, pdf_path: Path) -> None:
+def _powerpoint_to_pdf(source: Path, pdf_path: Path) -> tuple[set[int], int]:
     import win32com.client
 
     app = win32com.client.DispatchEx("PowerPoint.Application")
@@ -82,11 +88,20 @@ def _powerpoint_to_pdf(source: Path, pdf_path: Path) -> None:
             WithWindow=False,
         )
         try:
+            slide_count = deck.Slides.Count
+            # SlideShowTransition.Hidden is an MsoTriState: msoTrue (-1) when
+            # the slide is hidden, msoFalse (0) otherwise.
+            hidden = {
+                i
+                for i in range(1, slide_count + 1)
+                if deck.Slides(i).SlideShowTransition.Hidden
+            }
             deck.SaveAs(str(pdf_path.resolve()), PP_FORMAT_PDF)
         finally:
             deck.Close()
     finally:
         app.Quit()
+    return hidden, slide_count
 
 
 def _word_to_pdf(source: Path, pdf_path: Path) -> None:
@@ -117,11 +132,16 @@ def pdf_to_images(
     dpi: int = 300,
     image_format: str = "png",
     pages: set[int] | None = None,
+    labels: dict[int, int] | None = None,
 ) -> list[tuple[int, Path]]:
     """Render PDF pages to images.
 
     Returns a list of (1-based page number, image path) tuples. If ``pages``
-    is given, only those 1-based page numbers are rendered.
+    is given, only those 1-based page numbers are rendered. ``labels`` may map
+    a PDF page number to a different output number — used when the PDF page
+    order differs from the source document's (e.g. hidden PowerPoint slides
+    excluded from the export); the label replaces the PDF page number in the
+    returned tuples and the image file names.
     """
 
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -143,18 +163,74 @@ def pdf_to_images(
                 f"Requested pages {missing} are outside the document range 1-{total}."
             )
         for page_no in sorted(wanted):
+            label = labels.get(page_no, page_no) if labels else page_no
             page = doc.load_page(page_no - 1)
             pix = page.get_pixmap(matrix=matrix, alpha=False)
-            image_path = out_dir / f"page-{page_no:04d}.{image_format}"
+            image_path = out_dir / f"page-{label:04d}.{image_format}"
             if image_format == "jpeg":
                 pix.save(image_path, jpg_quality=95)
             else:
                 pix.save(image_path)
-            results.append((page_no, image_path))
+            results.append((label, image_path))
     finally:
         doc.close()
 
     return results
+
+
+def plan_ppt_pages(
+    total_slides: int,
+    hidden: set[int],
+    pdf_page_count: int,
+    requested: set[int] | None,
+    skip_hidden: bool,
+) -> tuple[dict[int, int], list[int]]:
+    """Decide which PDF pages to render for a PowerPoint source.
+
+    Returns ``(render_map, skipped)`` where ``render_map`` maps a 1-based PDF
+    page number to the slide number it represents, and ``skipped`` lists the
+    requested slide numbers that were excluded (hidden, or absent from the
+    PDF).
+
+    PowerPoint's PDF export may or may not include hidden slides depending on
+    version and settings, so the slide -> page mapping is derived by comparing
+    the PDF page count against the slide count:
+
+    - ``pdf_page_count == total_slides``: every slide is in the PDF and page N
+      is slide N; hidden slides are filtered out here instead.
+    - ``pdf_page_count == total_slides - len(hidden)``: hidden slides were
+      already excluded from the PDF; visible slides compact onto pages
+      1..pdf_page_count.
+    - Otherwise (unexpected): fall back to identity within the PDF's range.
+    """
+
+    if pdf_page_count == total_slides:
+        slide_to_page = {s: s for s in range(1, total_slides + 1)}
+    elif pdf_page_count == total_slides - len(hidden):
+        visible = (s for s in range(1, total_slides + 1) if s not in hidden)
+        slide_to_page = {s: i for i, s in enumerate(visible, start=1)}
+    else:
+        slide_to_page = {
+            s: s for s in range(1, min(total_slides, pdf_page_count) + 1)
+        }
+
+    wanted = requested if requested is not None else set(range(1, total_slides + 1))
+    out_of_range = sorted(s for s in wanted if s < 1 or s > total_slides)
+    if out_of_range:
+        raise ConversionError(
+            f"Requested pages {out_of_range} are outside the document range "
+            f"1-{total_slides}."
+        )
+
+    skipped = sorted(
+        s for s in wanted if (skip_hidden and s in hidden) or s not in slide_to_page
+    )
+    render_map = {
+        slide_to_page[s]: s
+        for s in sorted(wanted)
+        if s in slide_to_page and not (skip_hidden and s in hidden)
+    }
+    return render_map, skipped
 
 
 def prepare_images(
@@ -163,8 +239,14 @@ def prepare_images(
     dpi: int,
     image_format: str,
     pages: set[int] | None = None,
-) -> tuple[list[tuple[int, Path]], Path]:
-    """Full pipeline step: source document -> (page images, working PDF path)."""
+    skip_hidden: bool = True,
+) -> tuple[list[tuple[int, Path]], Path, list[int]]:
+    """Full pipeline step: source document -> (page images, PDF path, skipped).
+
+    ``skipped`` lists PowerPoint slide numbers excluded because they are
+    marked hidden (empty for non-PowerPoint sources, when none are hidden, or
+    when ``skip_hidden`` is false and hidden slides are present in the PDF).
+    """
 
     ext = source.suffix.lower()
     if ext not in SUPPORTED_EXTS:
@@ -174,11 +256,39 @@ def prepare_images(
         )
     if ext in PDF_EXTS:
         pdf_path = source
-    else:
-        pdf_path = work_dir / f"{source.stem}.pdf"
-        office_to_pdf(source, pdf_path)
-    images = pdf_to_images(pdf_path, work_dir, dpi=dpi, image_format=image_format, pages=pages)
-    return images, pdf_path
+        images = pdf_to_images(pdf_path, work_dir, dpi=dpi, image_format=image_format, pages=pages)
+        return images, pdf_path, []
+
+    pdf_path = work_dir / f"{source.stem}.pdf"
+    hidden, slide_count = office_to_pdf(source, pdf_path)
+
+    if ext not in POWERPOINT_EXTS or not slide_count:
+        images = pdf_to_images(pdf_path, work_dir, dpi=dpi, image_format=image_format, pages=pages)
+        return images, pdf_path, []
+
+    try:
+        with fitz.open(pdf_path) as doc:
+            pdf_page_count = doc.page_count
+    except Exception as exc:
+        raise ConversionError(f"Cannot open PDF {pdf_path}: {exc}") from exc
+
+    render_map, skipped = plan_ppt_pages(
+        slide_count, hidden, pdf_page_count, pages, skip_hidden
+    )
+    if not render_map:
+        raise ConversionError(
+            f"Nothing to convert: all requested slide(s) of {source.name} are "
+            f"hidden ({', '.join(map(str, skipped))})."
+        )
+    images = pdf_to_images(
+        pdf_path,
+        work_dir,
+        dpi=dpi,
+        image_format=image_format,
+        pages=set(render_map),
+        labels=render_map,
+    )
+    return images, pdf_path, skipped
 
 
 # Embedded images smaller than this on either side are treated as decorative
