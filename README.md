@@ -112,6 +112,8 @@ Slides are mostly visual (charts, tables, shapes), so for `.ppt/.pptx` doc2md em
 
 This way the original slide stays visible alongside the transcribed Markdown.
 
+Slide content is transcribed once per element (no duplication between the visible-text section and tables/charts). Charts, Gantt charts and diagrams are reconstructed as [mermaid](https://mermaid.js.org/) blocks (`pie`/`xychart-beta`, `gantt`, `flowchart`) with a short description; complex cases (stacked/combo charts, undated roadmaps, ambiguous diagrams) fall back to HTML tables or text notation. GitHub and most Markdown viewers render mermaid natively.
+
 ## Behaviour notes
 
 - **Hidden slides (PowerPoint)** — slides marked as hidden are skipped entirely: not rendered, not sent to the LLM, and not included in the Markdown. The console lists the skipped slides. Page markers keep the original slide numbers, so `# Page 5` / `<!-- page 5 -->` still means slide 5 even when earlier slides were skipped. If every requested slide is hidden, the conversion stops with an error (exit code `1`). Disable with `skip_hidden_slides: false`.
