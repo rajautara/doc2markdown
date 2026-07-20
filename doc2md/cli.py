@@ -137,7 +137,10 @@ async def _run_conversion(
                 _extract_and_link_figures(pdf_path, results, out_path)
 
     markdown = stitch_markdown(
-        results, title=source.stem, page_marker=cfg.output.page_marker
+        results,
+        title=source.stem,
+        page_marker=cfg.output.page_marker,
+        page_heading=(kind == "ppt"),
     )
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(markdown, encoding="utf-8")

@@ -95,13 +95,17 @@ def stitch_markdown(
     results: list[PageResult],
     title: str,
     page_marker: bool = True,
+    page_heading: bool = False,
 ) -> str:
     """Combine per-page Markdown into a single document."""
 
     parts: list[str] = [f"# {title}"]
     for result in results:
         if page_marker:
-            parts.append(f"# Page {result.page}\n<!-- page {result.page} -->")
+            if page_heading:
+                parts.append(f"# Page {result.page}\n<!-- page {result.page} -->")
+            else:
+                parts.append(f"<!-- page {result.page} -->")
         if result.ok:
             parts.append(result.markdown or "")
         else:

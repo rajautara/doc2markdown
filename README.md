@@ -59,7 +59,7 @@ processing:
 
 output:
   dir: ./output
-  page_marker: true                      # insert # Page N heading + <!-- page N --> between pages
+  page_marker: true                      # insert <!-- page N --> between pages (+ # Page N heading for PPT)
   extract_images: true                   # extract figures to <name>_images/
 ```
 
@@ -78,7 +78,7 @@ doc2md convert report.pdf -c prod.yaml --pages 1-3,7
 doc2md convert doc.docx --model qwen2-vl-72b --dpi 200 -o out\doc.md
 ```
 
-Output: one `.md` file per document in `output.dir`. Each page starts with a `# Page N` heading followed by a `<!-- page N -->` marker, making per-page content easy to extract.
+Output: one `.md` file per document in `output.dir`, with `<!-- page N -->` markers between pages. PowerPoint output additionally starts each slide with a `# Page N` heading, making per-slide content easy to extract (PDF/Word content can contain its own H1 headings, so those formats keep the comment-only marker).
 
 ## Figures and image references
 
