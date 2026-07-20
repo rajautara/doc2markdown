@@ -59,7 +59,7 @@ processing:
 
 output:
   dir: ./output
-  page_marker: true                      # insert <!-- page N --> between pages
+  page_marker: true                      # insert # Page N heading + <!-- page N --> between pages
   extract_images: true                   # extract figures to <name>_images/
 ```
 
@@ -78,7 +78,7 @@ doc2md convert report.pdf -c prod.yaml --pages 1-3,7
 doc2md convert doc.docx --model qwen2-vl-72b --dpi 200 -o out\doc.md
 ```
 
-Output: one `.md` file per document in `output.dir`, with `<!-- page N -->` markers between pages.
+Output: one `.md` file per document in `output.dir`. Each page starts with a `# Page N` heading followed by a `<!-- page N -->` marker, making per-page content easy to extract.
 
 ## Figures and image references
 
@@ -102,6 +102,7 @@ output/
 Slides are mostly visual (charts, tables, shapes), so for `.ppt/.pptx` doc2md embeds the **full rendered slide image** directly above each slide's transcription instead of extracting individual figures:
 
 ```markdown
+# Page 3
 <!-- page 3 -->
 
 ![Slide 3](3f4a9c1b72e0_images/page-0003.png)
@@ -113,7 +114,7 @@ This way the original slide stays visible alongside the transcribed Markdown.
 
 ## Behaviour notes
 
-- **Hidden slides (PowerPoint)** — slides marked as hidden are skipped entirely: not rendered, not sent to the LLM, and not included in the Markdown. The console lists the skipped slides. Page markers keep the original slide numbers, so `<!-- page 5 -->` still means slide 5 even when earlier slides were skipped. If every requested slide is hidden, the conversion stops with an error (exit code `1`). Disable with `skip_hidden_slides: false`.
+- **Hidden slides (PowerPoint)** — slides marked as hidden are skipped entirely: not rendered, not sent to the LLM, and not included in the Markdown. The console lists the skipped slides. Page markers keep the original slide numbers, so `# Page 5` / `<!-- page 5 -->` still means slide 5 even when earlier slides were skipped. If every requested slide is hidden, the conversion stops with an error (exit code `1`). Disable with `skip_hidden_slides: false`.
 - **Retries** — failed requests (429/5xx/timeouts/network errors) are retried with exponential backoff up to `max_retries`.
 - **Failed pages** — after retries are exhausted, a `[Page N transcription failed: ...]` placeholder is inserted into the output and remaining pages continue. Exit code `1` is returned so automation can detect partial failures.
 - **Optional temperature** — when absent from the config, the `temperature` field is omitted from the payload entirely (the server uses its own default).

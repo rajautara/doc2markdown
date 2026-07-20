@@ -52,7 +52,8 @@ processing:
 output:
   # Folder output untuk fail .md.
   dir: ./output
-  # Sisip penanda <!-- page N --> antara setiap page dalam markdown akhir.
+  # Sisip heading '# Page N' dan penanda <!-- page N --> antara setiap page
+  # dalam markdown akhir.
   page_marker: true
   # Extract embedded figures (chart, gambar, diagram) ke folder
   # <sha256(nama)[:12]>_images/ dan rewrite image ref dalam markdown

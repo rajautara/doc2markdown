@@ -101,7 +101,7 @@ def stitch_markdown(
     parts: list[str] = [f"# {title}"]
     for result in results:
         if page_marker:
-            parts.append(f"<!-- page {result.page} -->")
+            parts.append(f"# Page {result.page}\n<!-- page {result.page} -->")
         if result.ok:
             parts.append(result.markdown or "")
         else:
