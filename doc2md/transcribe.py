@@ -91,6 +91,39 @@ def count_image_refs(markdown: str) -> int:
     return len(IMAGE_REF_RE.findall(markdown))
 
 
+# Code fences the model sometimes wraps around raw HTML, breaking table rendering.
+HTML_FENCE_RE = re.compile(r"```html[ \t]*\n(.*?)\n[ \t]*```", re.DOTALL | re.IGNORECASE)
+TABLE_FENCE_RE = re.compile(
+    r"```[ \t]*\n[ \t]*(<table\b.*?</table>)[ \t]*\n[ \t]*```", re.DOTALL | re.IGNORECASE
+)
+MERMAID_BLOCK_RE = re.compile(r"(```mermaid[ \t]*\n)(.*?)(```)", re.DOTALL)
+
+
+def clean_page_markdown(markdown: str) -> str:
+    """Repair common model-output issues that break rendering.
+
+    - Unwrap HTML tables from code fences so they render as tables.
+    - Strip "~" estimate markers (and thousands separators in pie charts)
+      from mermaid numeric values, which must be plain numbers.
+    """
+
+    markdown = HTML_FENCE_RE.sub(lambda m: m.group(1), markdown)
+    markdown = TABLE_FENCE_RE.sub(r"\1", markdown)
+
+    def fix_mermaid(match: re.Match[str]) -> str:
+        head, body, tail = match.groups()
+        kind = body.lstrip().split(None, 1)[0] if body.strip() else ""
+        if kind in ("pie", "xychart-beta"):
+            body = re.sub(r"~(?=\d)", "", body)
+        if kind == "pie":
+            # Thousands separators only; unsafe in xychart arrays where commas
+            # delimit values.
+            body = re.sub(r"(?<=\d),(?=\d{3}\b)", "", body)
+        return f"{head}{body}{tail}"
+
+    return MERMAID_BLOCK_RE.sub(fix_mermaid, markdown)
+
+
 def stitch_markdown(
     results: list[PageResult],
     title: str,

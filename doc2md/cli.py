@@ -29,6 +29,7 @@ from .converter import (
 )
 from .llm import VisionLLM
 from .transcribe import (
+    clean_page_markdown,
     count_image_refs,
     rewrite_image_refs,
     stitch_markdown,
@@ -129,6 +130,10 @@ async def _run_conversion(
                 )
         finally:
             await llm.aclose()
+
+        for r in results:
+            if r.ok and r.markdown:
+                r.markdown = clean_page_markdown(r.markdown)
 
         if cfg.output.extract_images:
             if kind == "ppt":

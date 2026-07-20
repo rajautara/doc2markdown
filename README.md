@@ -112,7 +112,7 @@ Slides are mostly visual (charts, tables, shapes), so for `.ppt/.pptx` doc2md em
 
 This way the original slide stays visible alongside the transcribed Markdown.
 
-Slide content is transcribed once per element (no duplication between the visible-text section and tables/charts). Charts, Gantt charts and diagrams are reconstructed as [mermaid](https://mermaid.js.org/) blocks (`pie`/`xychart-beta`, `gantt`, `flowchart`) with a short description; complex cases (stacked/combo charts, undated roadmaps, ambiguous diagrams) fall back to HTML tables or text notation. GitHub and most Markdown viewers render mermaid natively.
+Slide content is transcribed once per element (no duplication between the visible-text section and tables/charts). Charts, Gantt charts, roadmaps and diagrams are reconstructed as [mermaid](https://mermaid.js.org/) blocks (`pie`/`xychart-beta`, `gantt`, `timeline` for milestone-only roadmaps, `flowchart`) with a short description and summary; complex cases (stacked/combo charts, undated roadmaps, ambiguous diagrams) fall back to HTML tables or text notation. Tables are emitted as raw HTML (never fenced) so they render in Markdown viewers, and a post-processing step unwraps stray ```` ```html ```` fences and fixes common mermaid value issues. GitHub and most Markdown viewers render mermaid natively.
 
 ## Behaviour notes
 

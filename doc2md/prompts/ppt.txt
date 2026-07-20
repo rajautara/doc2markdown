@@ -62,6 +62,7 @@ Table: [Visible title or descriptive name]
 - Position: Location on the slide
 - Structure: Header levels, grouped columns, merged cells, row groups or totals
 Always transcribe tables using valid HTML, never Markdown tables.
+Output the HTML directly in the Markdown body. Never wrap HTML in code fences — no ```html and no ``` — or the table will display as code instead of rendering.
 
 Use:
 - <table>, <caption>, <thead>, <tbody>, <tfoot>
@@ -95,6 +96,8 @@ Do not use excessive CSS. Represent meaningful formatting with short annotations
 Add "#### Table Notes" only when needed to explain colours, diagonal headers, icons, borders, arrows or visual grouping that HTML cannot preserve.
 
 Charts and Graphs
+Never use a chart format for timelines, roadmaps, schedules or any visual whose axis is time periods, phases or milestones. Transcribe those only under "Gantt Charts, Roadmaps and Timelines" — an xychart is always wrong for them.
+
 For every chart, provide:
 Chart: [Visible title or descriptive name]
 - Position
@@ -104,7 +107,6 @@ Chart: [Visible title or descriptive name]
 - Secondary axis: If present
 - Annotations: Targets, thresholds, callouts and reference lines
 - Source: If visible
-- Visible trend: Only what is clearly supported by the chart
 
 Then reconstruct the chart data once, in exactly one of the two formats below. Do not repeat axis labels, categories or values in the bullets above.
 
@@ -137,18 +139,24 @@ Data rules for both formats:
 - Mermaid values must be plain numbers. When plotted values are estimated from bar heights, points or axes, do not put "~" inside the mermaid block; instead add a bullet "Values: estimated from the chart (~)" above it. In HTML tables, prefix estimated values with "~" as usual.
 - Do not invent precise values when the image does not support them. If exact values are unavailable, skip the data reconstruction and describe relative patterns such as highest, lowest, rising, falling or remaining above a target.
 
-Mermaid syntax rules:
-- Keep syntax minimal and valid; no Markdown formatting inside mermaid blocks.
-- Quote labels that contain spaces or special characters.
+End every chart with:
+Summary: One to three sentences on the key message and any notable comparisons, trends or outliers, strictly supported by the visible chart.
 
 Gantt Charts, Roadmaps and Timelines
+Every timeline, roadmap or schedule visual is transcribed here, never as a chart.
+
 For every schedule visual, provide:
 Gantt Chart or Timeline: [Visible title or descriptive name]
 - Position
 - Timeline scale and date range
 - Legend and colour meanings
 
-Reconstruct the schedule once as a fenced mermaid gantt block:
+Choose the reconstruction format by the visual's structure:
+1. Bars with durations (visible start and end) → mermaid gantt.
+2. Milestone or event-only roadmap (no duration bars) → mermaid timeline.
+3. No usable time structure at all → HTML table fallback.
+
+Schedules with duration bars use a fenced mermaid gantt block:
 ```mermaid
 gantt
     title Delivery Roadmap
@@ -167,16 +175,30 @@ gantt
 - Use "milestone" for milestone markers.
 - Use "after <taskId>" only for dependencies actually drawn with connecting arrows.
 - Use exact dates only when printed. When only years, quarters, months or weeks are visible, map the bar to the first day of the period (for example Q1 2026 becomes 2026-01-01) and flag the task as approximate in Schedule Notes.
-- Task names must match the visible text exactly.
+- Task names must match the visible text, except that ":" and "," must be replaced with "-" (they break gantt syntax); note the original wording in Schedule Notes when changed.
 
-Add "#### Schedule Notes" for everything the mermaid gantt cannot encode:
+Milestone or event-only roadmaps use a fenced mermaid timeline block:
+```mermaid
+timeline
+    title Product Roadmap
+    2026 Q1 : MVP launch
+    2026 Q2 : Beta program : Partner onboarding
+    2026 Q3 : GA release
+```
+- One line per period; multiple events in the same period are separated by " : ".
+- Period and event text must not contain ":" (it is the delimiter); replace with "-".
+
+Add "#### Schedule Notes" for everything the mermaid gantt or timeline cannot encode:
 - Owners
 - Percent progress on partially filled bars
 - Colour or pattern meanings beyond done/active/crit
 - Today marker position
 - Which tasks have approximate dates (~)
 
-If the visual has no usable date axis at all (for example a relative roadmap with no dates or periods), fall back to an HTML table with columns such as Workstream, Task, Start, End, Status, Dependency, Owner, Notes, and use values such as "~Early phase" where needed.
+If the visual has no usable time structure at all (no dates, periods or ordered milestones), fall back to an HTML table with columns such as Workstream, Task, Start, End, Status, Dependency, Owner, Notes, and use values such as "~Early phase" where needed.
+
+End every schedule visual with:
+Summary: One to three sentences on the overall schedule shape, such as total duration, critical phases and key milestones, strictly supported by the visible schedule.
 
 Diagrams and Flowcharts
 For every diagram, provide:
@@ -188,17 +210,17 @@ Diagram: [Visible title or descriptive name]
 Reconstruct the structure once as a fenced mermaid flowchart block:
 ```mermaid
 flowchart LR
-    subgraph Phase 1
-        A[Input] --> B[Processing]
+    subgraph SG1["Phase 1"]
+        A["Input"] --> B["Processing"]
     end
-    B --> C{Valid?}
-    C -->|Yes| D[Output]
-    C -->|No| B
+    B --> C{"Valid?"}
+    C -->|"Yes"| D["Output"]
+    C -->|"No"| B
 ```
 
 - Choose the direction from the visual reading order: LR for left-to-right, TD for top-down.
 - Use subgraph for groups, phases, containers and swimlanes.
-- Use { } nodes for decisions and -->|label| for labelled connectors.
+- Use { } nodes for decisions and -->|"label"| for labelled connectors.
 - Represent feedback loops as ordinary edges pointing back to the earlier node.
 - Capture every readable node, branch, dependency, input and output.
 - Node and connector text must match the visible text exactly; use [unclear] for unreadable nodes.
@@ -209,6 +231,22 @@ Node A → Node B
 Node A → Node C
 Node C → Node D
 Node D → Node B [feedback loop]
+
+End every diagram with:
+Summary: One to three sentences on what the flow or structure accomplishes end to end, strictly supported by the visible diagram.
+
+Mermaid Syntax Rules
+Apply these rules to every mermaid block. An invalid block is worse than a fallback table.
+- Use only these diagram types: pie, xychart-beta, gantt, timeline, flowchart.
+- The first line inside the block is the diagram type. The fence lines contain nothing but ```mermaid and ```.
+- No Markdown formatting, HTML tags or %% comments inside mermaid blocks.
+- Numeric values are plain numbers: no "~", "%", units, currency symbols or thousands separators. Units and estimate flags belong in the description bullets.
+- pie: every slice label in double quotes; one "label" : value pair per line.
+- xychart-beta: chart title and axis titles in double quotes; x-axis category labels in double quotes when they contain spaces; values are plain numbers.
+- gantt: task names must not contain ":" or "," (replace with "-"); task IDs short and alphanumeric; dates strictly YYYY-MM-DD; durations like 60d; dependencies only as "after taskId"; status tags only done, active, crit, milestone.
+- timeline: period and event text must not contain ":" (the delimiter).
+- flowchart: short alphanumeric node IDs (A, B, N1); all display text in double quotes, as in A["Input"], C{"Valid?"}, subgraph SG1["Phase 1"] and -->|"Yes"|; never use lowercase "end" as a node ID.
+- When content cannot satisfy these rules, use the documented fallback (HTML table or relationship lines) instead of guessing at syntax.
 
 KPI Cards and Dashboards
 Capture each visible metric:
@@ -272,14 +310,16 @@ If everything is readable, write:
 Final Requirements
 Before answering, ensure that:
 - All visible text and data have been captured, each exactly once — no content is duplicated across sections.
-- Every table uses HTML.
+- Every table uses HTML, output as raw HTML and never inside code fences.
 - Merged cells and header hierarchy are preserved.
-- Charts, Gantt charts and diagrams use a mermaid block when the type supports it, with the documented HTML-table or text fallback otherwise.
-- Mermaid blocks use valid syntax and contain no Markdown formatting.
+- Charts, Gantt charts, timelines and diagrams use a mermaid block when the type supports it, with the documented HTML-table or text fallback otherwise.
+- No timeline, roadmap or schedule is rendered as an xychart.
+- Mermaid blocks follow the Mermaid Syntax Rules and contain no Markdown formatting.
 - Chart series, axes and values are included.
 - Gantt tasks, periods, milestones and dependencies are included.
+- Every chart, Gantt chart, timeline and diagram ends with a Summary supported by visible content.
 - Exact and estimated values are clearly distinguished.
 - Unreadable content is identified rather than guessed.
 - The original slide language is preserved.
 
-Do not wrap the entire response in one code block. Use code blocks only for HTML tables, mermaid diagrams or text-based diagram representations.
+Do not wrap the entire response in one code block. Never wrap HTML tables in code fences; output them as raw HTML so they render. Use fenced code blocks only for mermaid diagrams and text-based diagram fallbacks.
